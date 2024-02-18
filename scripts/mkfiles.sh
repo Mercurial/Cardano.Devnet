@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+source ../.env
 set -e
 # Unofficial bash strict mode.
 # See: http://redsymbol.net/articles/unofficial-bash-strict-mode/
@@ -141,11 +141,14 @@ rm "${ROOT}/genesis/byron/genesis-wrong.json"
 
 cp "${ROOT}/genesis/shelley/genesis.json" "${ROOT}/genesis/shelley/copy-genesis.json"
 
-jq -M ". + {slotLength:${SLOT_LENGTH}, securityParam:10, activeSlotsCoeff:${SLOT_COEFF}, securityParam:10, epochLength:${EPOCH_LENGTH}, maxLovelaceSupply:${MAX_LOVELACE_SUPPLY}, updateQuorum:2" "${ROOT}/genesis/shelley/copy-genesis.json" > "${ROOT}/genesis/shelley/copy2-genesis.json"
-jq --raw-output '.protocolParams.protocolVersion.major = 7 | .protocolParams.minFeeA = 44 | .protocolParams.minFeeB = 155381 | .protocolParams.minUTxOValue = 1000000 | .protocolParams.decentralisationParam = 0.7 | .protocolParams.rho = 0.1 | .protocolParams.tau = 0.1' "${ROOT}/genesis/shelley/copy2-genesis.json" > "${ROOT}/genesis/shelley/genesis.json"
+GENESIS_KEY_HASH_WITH_NETWORK="60${GENESIS_KEY_HASH}"
+jq -M ". + {slotLength:${SLOT_LENGTH}, securityParam:10, activeSlotsCoeff:${SLOT_COEFF}, securityParam:10, epochLength:${EPOCH_LENGTH}, maxLovelaceSupply:${MAX_LOVELACE_SUPPLY}, updateQuorum:2}" "${ROOT}/genesis/shelley/copy-genesis.json" > "${ROOT}/genesis/shelley/copy2-genesis.json"
+jq --raw-output ".protocolParams.protocolVersion.major = 7 | .protocolParams.minFeeA = 44 | .protocolParams.minFeeB = 155381 | .protocolParams.minUTxOValue = 1000000 | .protocolParams.decentralisationParam = 0.7 | .protocolParams.rho = 0.1 | .protocolParams.tau = 0.1 | .protocolParams.maxBlockBodySize = ${MAX_BLOCK_BODY_SIZE} | .protocolParams.maxBlockHeaderSize = ${MAX_BLOCK_HEADER_SIZE} | .protocolParams.maxTxSize = ${MAX_TX_SIZE}" "${ROOT}/genesis/shelley/copy2-genesis.json" > "${ROOT}/genesis/shelley/copy3-genesis.json"
+jq --raw-output ".initialFunds += {\"${GENESIS_KEY_HASH_WITH_NETWORK}\": ${GENESIS_INITIAL_FUNDS}}" "${ROOT}/genesis/shelley/copy3-genesis.json" > "${ROOT}/genesis/shelley/genesis.json"
 
 rm "${ROOT}/genesis/shelley/copy2-genesis.json"
 rm "${ROOT}/genesis/shelley/copy-genesis.json"
+rm "${ROOT}/genesis/shelley/copy3-genesis.json"
 
 mv "${ROOT}/pools/vrf1.skey" "${ROOT}/node-spo1/vrf.skey"
 mv "${ROOT}/pools/vrf2.skey" "${ROOT}/node-spo2/vrf.skey"
