@@ -39,5 +39,7 @@ ENV SLOT_LENGTH=1 \
     GENESIS_KEY_HASH=cc7699bcad846a48850a92cfe0c4024b3d9b879e1ce32d3dd75a481b \
     GENESIS_INITIAL_FUNDS=1000000000000
 
+ENV CARDANO_NODE_SOCKET_PATH=/opt/cardano-node/devnet/main.sock
+
 ENTRYPOINT ["sh", "-c", "cd /opt/scripts && ./start.sh"]
 

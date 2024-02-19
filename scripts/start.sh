@@ -1,4 +1,19 @@
 #!/bin/bash
+
+# Check if ../keys directory exists for genesis / faucet wallet
+if [ -d "../keys" ]; then
+    # Check if ../keys/payment.addr exists
+    if [ -f "../keys/payment.addr" ]; then
+        echo "The payment.addr file already exists. Skipping the generation of the genesis wallet."
+    else
+        echo "The payment.addr file does not exist. Running generate-genesis-payment-key.sh..."
+        cd .. && ./scripts/generate-genesis-payment-key.sh && cd ./scripts
+    fi
+else
+    echo "The keys directory does not exist. Running generate-genesis-payment-key.sh..."
+    cd .. && ./scripts/generate-genesis-payment-key.sh && cd ./scripts
+fi
+
 cd ../cardano-node
 
 if [ -d "devnet" ]; then
@@ -16,9 +31,6 @@ if [ -d "devnet" ]; then
             
             # Remove the now empty devnet-temp directory
             rmdir ./devnet-temp
-            
-            # now that the files are in ./devnet make a symlink ./devnet-temp -> ./devnet
-            ln -s ./devnet ./devnet-temp
         fi
     else
         echo "The devnet directory is not empty."
@@ -26,6 +38,11 @@ if [ -d "devnet" ]; then
 else
     echo "The devnet directory does not exist. Running mkfiles.sh..."
     ./scripts/babbage/mkfiles.sh
+fi
+
+# if symlink not exists then create it
+if [ ! -L "./devnet-temp" ]; then
+    ln -s ./devnet ./devnet-temp
 fi
 
 ./devnet/run/all.sh
