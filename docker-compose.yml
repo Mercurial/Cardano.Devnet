@@ -9,3 +9,4 @@ services:
       - EPOCH_LENGTH=600
     volumes:
       - ./devnet-data:/opt/cardano-node/devnet
+      - ./keys:/opt/keys
