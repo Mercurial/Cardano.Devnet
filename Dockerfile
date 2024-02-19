@@ -39,5 +39,5 @@ ENV SLOT_LENGTH=1 \
     GENESIS_KEY_HASH=cc7699bcad846a48850a92cfe0c4024b3d9b879e1ce32d3dd75a481b \
     GENESIS_INITIAL_FUNDS=1000000000000
 
-ENTRYPOINT ["sh", "-c", "cd /opt/cardano-node && ./scripts/babbage/mkfiles.sh && ./devnet/run/all.sh"]
+ENTRYPOINT ["sh", "-c", "cd /opt/scripts && ./start.sh"]
 

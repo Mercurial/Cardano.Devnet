@@ -37,7 +37,7 @@ SECURITY_PARAM=10
 NUM_SPO_NODES=3
 INIT_SUPPLY=12000000
 START_TIME="$(${DATE} -d "now + 30 seconds" +%s)"
-ROOT=devnet
+ROOT=$(pwd)/devnet-temp
 mkdir -p "${ROOT}"
 
 cat > "${ROOT}/byron.genesis.spec.json" <<EOF
