@@ -110,9 +110,9 @@
                 a.Add("CARDANO_NODE_SOCKET_PATH", Path.Combine(systemRoot!, "cardano-node", "devnet-temp", "main.sock"));
             });
         }
-        catch
+        catch (Exception e)
         {
-
+            Console.WriteLine(e.Message);
         }
         FaucetTargetAddress = string.Empty;
         FaucetTargetAmount = 1000000;
@@ -125,8 +125,9 @@
         {
             await ReadAsync("pkill", "-9 cardano-node");
         }
-        catch
+        catch (Exception e)
         {
+            Console.WriteLine(e.Message);
         }
     }
 
@@ -137,9 +138,9 @@
             var systemRoot = Configuration.GetValue<string>("SystemRoot");
             await RunAsync("/bin/bash", "./devnet-temp/run/all.sh", Path.Combine(systemRoot!, "cardano-node"));
         }
-        catch
+        catch (Exception e)
         {
-
+            Console.WriteLine(e.Message);
         }
     }
 
@@ -150,9 +151,9 @@
             var systemRoot = Configuration.GetValue<string>("SystemRoot");
             await RunAsync("/bin/bash", "./scripts/generate-genesis-payment-key.sh", systemRoot!);
         }
-        catch
+        catch (Exception e)
         {
-
+            Console.WriteLine(e.Message);
         }
     }
 
@@ -167,20 +168,20 @@
             await File.WriteAllTextAsync(Path.Combine(systemRoot!, ".env"), Env!);
 
             // Delete old devnet
-            Directory.Delete(Path.Combine(systemRoot!, "cardano-node", "devnet-temp"), true);
+            if(Directory.Exists(Path.Combine(systemRoot!, "cardano-node", "devnet-temp")))
+                Directory.Delete(Path.Combine(systemRoot!, "cardano-node", "devnet-temp"), true);
 
-            await RunAsync("/bin/bash", "./scripts/babbage/mkfiles.sh", Path.Combine(systemRoot!, "cardano-node"), true, null, (a) => {
+            await RunAsync("/bin/bash", "./scripts/babbage/mkfiles.sh", Path.Combine(systemRoot!, "cardano-node"), false, "[mkfiles]: ", (a) => {
                 Env?.Split("\n").ToList().ForEach((line) => {
                     var parts = line.Split("=");
                     a.Add(parts[0], parts[1]);
                 });
             });
         }
-        catch
+        catch (Exception e)
         {
-
+            Console.WriteLine(e.Message);
         }
-
         await StartAsync();
     }
 

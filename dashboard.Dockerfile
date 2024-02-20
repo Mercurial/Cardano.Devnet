@@ -1,4 +1,15 @@
-FROM alpine:latest
+# Use the official Microsoft .NET SDK image to build the application
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build-env
+WORKDIR /app
+
+# Copy the .csproj file and restore any dependencies (via NuGet)
+COPY ./src ./src/
+WORKDIR /app/src/Cardano.Devnet
+RUN dotnet restore
+RUN dotnet publish -c Release -o /app/publish
+
+# Generate the runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine
 
 RUN apk update && apk add --no-cache \
     bash \
@@ -29,16 +40,11 @@ COPY ./scripts/mkfiles.sh /opt/cardano-node/scripts/babbage/mkfiles.sh
 RUN chmod +x /opt/cardano-node/scripts/babbage/mkfiles.sh
 
 # Defaults
-ENV SLOT_LENGTH=1 \
-    SLOT_COEFF=1 \
-    EPOCH_LENGTH=500 \
-    MAX_LOVELACE_SUPPLY=45000000000000000 \
-    MAX_BLOCK_BODY_SIZE=65536 \
-    MAX_BLOCK_HEADER_SIZE=1100 \
-    MAX_TX_SIZE=16384 \
-    GENESIS_INITIAL_FUNDS=1000000000000
+ENV SYSTEMROOT=/opt
 
 ENV CARDANO_NODE_SOCKET_PATH=/opt/cardano-node/devnet/main.sock
 
-ENTRYPOINT ["sh", "-c", "cd /opt/scripts && ./start.sh"]
-
+WORKDIR /app
+COPY --from=build-env /app/publish .
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "Cardano.Devnet.dll"]
