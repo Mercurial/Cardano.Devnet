@@ -1,3 +1,5 @@
 keys/
 cardano-node/
 devnet-data/
+**/bin/**
+**/obj/**

@@ -1,0 +1,206 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@inject IJSRuntime jsRuntime
+@inject IConfiguration Configuration
+
+@using static SimpleExec.Command
+@using System.Text.Json
+
+<PageTitle>Cardano Devnet Dashboard</PageTitle>
+
+<div class="mt-8">
+    <MudCard>
+        <MudCardContent>
+            <MudText Typo="Typo.h6" Class="mb-2">Devnet Settings</MudText>
+
+            <div class="flex flex-wrap gap-2 mb-4">
+                @if (Tip is not null)
+                {
+                    <MudChip Color="Color.Success" Variant="Variant.Outlined">Slot: @Tip.Slot</MudChip>
+                    <MudChip Color="Color.Success" Variant="Variant.Outlined">Tip: @Tip.Block</MudChip>
+                    <MudChip Color="Color.Success" Variant="Variant.Outlined">Epoch: @Tip.Epoch</MudChip>
+                    <MudChip Color="Color.Success" Variant="Variant.Outlined">Era: @Tip.Era</MudChip>
+                    <MudChip Color="Color.Success" Variant="Variant.Outlined">Sync: @Tip.SyncProgress%</MudChip>
+                }
+                else
+                {
+                    <MudChip Color="Color.Error" Variant="Variant.Outlined">Network Down</MudChip>
+                }
+            </div>
+
+            <StandaloneCodeEditor @ref="Editor" Id="devnet-settings" ConstructionOptions="EditorConstructionOptions" OnKeyUp="OnEditorKeyUp" />
+        </MudCardContent>
+        <MudCardActions>
+            @if(Tip is not null)
+            {
+                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="StopAsync">Stop</MudButton>
+            }
+            else
+            {
+                <MudButton Variant="Variant.Text" Color="Color.Success" OnClick="StartAsync">Start</MudButton>
+            }
+            <MudButton Variant="Variant.Text" Color="Color.Warning" OnClick="ApplySettingsAsync">Apply & Reset</MudButton>
+        </MudCardActions>
+    </MudCard>
+     <MudCard>
+        <MudCardContent>
+            <MudText Typo="Typo.h6" Class="mb-2">Lovelace Faucet</MudText>
+            <MudForm>
+                <MudItem>
+                    <MudTextField Label="Address" Variant="Variant.Filled" Placeholder="Enter Cardano address" @bind-Value="FaucetTargetAddress" />
+                </MudItem>
+                <MudItem>
+                    <MudTextField Label="Amount" Variant="Variant.Filled" Placeholder="Enter amount in lovelaces" @bind-Value="FaucetTargetAmount"/>
+                </MudItem>
+                <MudItem Class="mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SendLovelaceAsync">Send</MudButton>
+                </MudItem>
+            </MudForm>
+        </MudCardContent>
+    </MudCard>
+</div>
+
+
+@code {
+    protected Models.CardanoTip? Tip { get; set; } = null;
+    protected string? Env { get; set; } = null;
+    protected StandaloneCodeEditor? Editor { get; set; }
+    protected string FaucetTargetAddress { get; set; } = string.Empty;
+    protected ulong FaucetTargetAmount { get; set; } = 1000000;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await BlazorMonaco.Editor.Global.SetTheme(jsRuntime, "vs-dark");
+
+            _ = Task.Run(async () =>
+            {
+                while(true)
+                {
+                    await QueryTipAsync();
+                    await Task.Delay(1000);
+                }
+            });
+        }
+    }
+
+    private async Task QueryTipAsync()
+    {
+        try
+        {
+            var systemRoot = Configuration.GetValue<string>("SystemRoot");
+            var (output, err) = await ReadAsync("cardano-cli", "query tip --testnet-magic 42", systemRoot!, (a) => {
+                a.Add("CARDANO_NODE_SOCKET_PATH", Path.Combine(systemRoot!, "cardano-node", "devnet-temp", "main.sock"));
+            });
+            Tip = JsonSerializer.Deserialize<Models.CardanoTip>(output, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch
+        {
+            Tip = null;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SendLovelaceAsync()
+    {
+        try
+        {
+            var systemRoot = Configuration.GetValue<string>("SystemRoot");
+            var (output, err) = await ReadAsync("/bin/bash", $"./scripts/send-lovelace.sh {FaucetTargetAddress} {FaucetTargetAmount}", systemRoot!, (a) => {
+                a.Add("CARDANO_NODE_SOCKET_PATH", Path.Combine(systemRoot!, "cardano-node", "devnet-temp", "main.sock"));
+            });
+        }
+        catch
+        {
+
+        }
+        FaucetTargetAddress = string.Empty;
+        FaucetTargetAmount = 1000000;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StopAsync()
+    {
+        try
+        {
+            await ReadAsync("pkill", "-9 cardano-node");
+        }
+        catch
+        {
+        }
+    }
+
+    private async Task StartAsync()
+    {
+        try
+        {
+            var systemRoot = Configuration.GetValue<string>("SystemRoot");
+            await RunAsync("/bin/bash", "./devnet-temp/run/all.sh", Path.Combine(systemRoot!, "cardano-node"));
+        }
+        catch
+        {
+
+        }
+    }
+
+    private async Task GenerateGenesisKeysAsync()
+    {
+        try
+        {
+            var systemRoot = Configuration.GetValue<string>("SystemRoot");
+            await RunAsync("/bin/bash", "./scripts/generate-genesis-payment-key.sh", systemRoot!);
+        }
+        catch
+        {
+
+        }
+    }
+
+    private async Task ApplySettingsAsync()
+    {
+        await StopAsync();
+        await GenerateGenesisKeysAsync();
+        try
+        {
+            var systemRoot = Configuration.GetValue<string>("SystemRoot");
+            // Save Settings
+            await File.WriteAllTextAsync(Path.Combine(systemRoot!, ".env"), Env!);
+
+            // Delete old devnet
+            Directory.Delete(Path.Combine(systemRoot!, "cardano-node", "devnet-temp"), true);
+
+            await RunAsync("/bin/bash", "./scripts/babbage/mkfiles.sh", Path.Combine(systemRoot!, "cardano-node"), true, null, (a) => {
+                Env?.Split("\n").ToList().ForEach((line) => {
+                    var parts = line.Split("=");
+                    a.Add(parts[0], parts[1]);
+                });
+            });
+        }
+        catch
+        {
+
+        }
+
+        await StartAsync();
+    }
+
+    private StandaloneEditorConstructionOptions EditorConstructionOptions(StandaloneCodeEditor editor)
+    {
+        var systemRoot = Configuration.GetValue<string>("SystemRoot");
+        var env = File.ReadAllText(Path.Combine(systemRoot!, ".env"));
+        return new StandaloneEditorConstructionOptions
+        {
+            AutomaticLayout = true,
+            Language = "properties",
+            Value = Env = env,
+        };
+    }
+
+    private void OnEditorKeyUp(KeyboardEvent e)
+    {
+        Editor!.GetValue().ContinueWith((value) =>
+        {
+            Env = value.Result;
+        });
+    }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "cardano-devnet",
+  "module": "app.ts",
+  "type": "module",
+  "scripts": {
+    "watch": "tailwindcss -i ./app.css -o ./dist/app.bundle.css --watch"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}
